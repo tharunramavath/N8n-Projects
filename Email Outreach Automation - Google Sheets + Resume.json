@@ -1,0 +1,348 @@
+{
+  "name": "Email Outreach Automation - Google Sheets + Resume",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "97399164-93d0-47c8-98ae-1b8b31b9bf17",
+      "name": "⏰ Schedule Trigger (Bulk Mode)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Runs every 24 hours to bulk-send to all rows. Adjust interval as needed."
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "id": "06703ce7-d79f-4a92-a76d-deca316896c7",
+      "name": "📋 Google Sheets Trigger (New Row Mode)",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        224,
+        192
+      ],
+      "notes": "Watches for new rows added in real-time. Use this OR the Schedule Trigger."
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Email Sent",
+              "lookupValue": "No"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "66fd20c2-be38-4eff-814a-9ebf43cd2ef3",
+      "name": "📊 Read Google Sheet (Unsent Rows)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "notes": "Reads rows where 'Email Sent' column = 'No'. Make sure your sheet has: Name | Company | Email | Email Sent columns."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract recipient details from each row\nconst items = $input.all();\n\nreturn items.map(item => {\n  const row = item.json;\n  \n  // Customize these field names to match your sheet columns\n  const name = row['Name'] || row['name'] || '';\n  const company = row['Company'] || row['Company Name'] || row['company'] || '';\n  const email = row['Email'] || row['email'] || '';\n  const rowNumber = row['row_number'] || row['__ROW_NUMBER__'] || '';\n\n  if (!email || !name) {\n    return { json: { skip: true, reason: 'Missing name or email', raw: row } };\n  }\n\n  // Personalized subject line\n  const subject = `Exploring Opportunities at ${company} – [Your Name]`;\n\n  // Personalized email body (HTML)\n  const emailBody = `\n<html>\n<body style=\"font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;\">\n  <p>Dear ${name},</p>\n\n  <p>\n    I hope this message finds you well. I came across <strong>${company}</strong> and was genuinely impressed \n    by the work your team is doing. I'm reaching out to express my interest in potential opportunities \n    where I could contribute meaningfully.\n  </p>\n\n  <p>\n    I'm a <strong>[Your Role/Title]</strong> with experience in <strong>[Your Key Skills]</strong>. \n    I believe my background aligns well with the kind of work ${company} is focused on, \n    and I'd love the opportunity to connect and explore how I might add value to your team.\n  </p>\n\n  <p>\n    I've attached my resume for your reference. I'd be happy to schedule a brief call \n    at your convenience — even 15 minutes would be wonderful.\n  </p>\n\n  <p>\n    Thank you so much for your time, ${name}. I look forward to the possibility of connecting!\n  </p>\n\n  <p>\n    Warm regards,<br/>\n    <strong>[Your Full Name]</strong><br/>\n    [Your Phone Number]<br/>\n    [Your LinkedIn URL]<br/>\n    [Your Portfolio/Website]\n  </p>\n</body>\n</html>`;\n\n  return {\n    json: {\n      skip: false,\n      name,\n      company,\n      email,\n      subject,\n      emailBody,\n      rowNumber\n    }\n  };\n});"
+      },
+      "id": "97c88c8d-01bb-45f6-8f0c-6027ff9ffdb9",
+      "name": "✍️ Compose Personalized Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1392e3a8-4898-49c8-a513-459852a053dc",
+      "name": "🔍 Filter Valid Rows",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        672,
+        96
+      ],
+      "notes": "Skips rows with missing name or email"
+    },
+    {
+      "parameters": {
+        "url": "https://drive.google.com/uc?export=download&id=YOUR_RESUME_GOOGLE_DRIVE_FILE_ID",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "ee4363d3-ded1-4b18-88b9-297e03dd58c6",
+      "name": "📎 Fetch Resume from Google Drive",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        96
+      ],
+      "notes": "Downloads your resume PDF from Google Drive. Replace YOUR_RESUME_GOOGLE_DRIVE_FILE_ID with the file ID from your Drive share link."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('🔍 Filter Valid Rows').item.json.email }}",
+        "subject": "={{ $('🔍 Filter Valid Rows').item.json.subject }}",
+        "message": "={{ $('🔍 Filter Valid Rows').item.json.emailBody }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "b7fd2d1f-7eaf-4006-a49a-b24b748b5bf2",
+      "name": "📧 Send Email via Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        96
+      ],
+      "webhookId": "c3e1a865-793d-4bd9-a4da-c72a20ff269b",
+      "notes": "Sends personalized email with resume attached. Connect your Gmail OAuth2 credentials in n8n."
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "a94a9a3f-b804-4b67-a622-7f7477640cb9",
+      "name": "✅ Mark Row as Sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1344,
+        96
+      ],
+      "notes": "Updates 'Email Sent' = Yes and timestamps the row after successful send."
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "d27a6f8e-d5c3-4d6b-b35e-b5e9800dfd2b",
+      "name": "⏱️ Rate Limit Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1568,
+        96
+      ],
+      "webhookId": "285223bc-1d21-4a43-85be-8ea8a73fe033",
+      "notes": "Adds a 3-second delay between emails to avoid Gmail rate limits."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log errors without stopping the workflow\nconst error = $input.first().json;\nconsole.error('Email send failed:', JSON.stringify(error));\n\nreturn [{\n  json: {\n    status: 'failed',\n    timestamp: new Date().toISOString(),\n    error: error\n  }\n}];"
+      },
+      "id": "2ff9f230-22d0-45c7-9e40-b095c6064312",
+      "name": "🚨 Error Logger",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        368
+      ],
+      "notes": "Catches send errors gracefully and logs them."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "⏰ Schedule Trigger (Bulk Mode)": {
+      "main": [
+        [
+          {
+            "node": "📊 Read Google Sheet (Unsent Rows)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Google Sheets Trigger (New Row Mode)": {
+      "main": [
+        [
+          {
+            "node": "✍️ Compose Personalized Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Read Google Sheet (Unsent Rows)": {
+      "main": [
+        [
+          {
+            "node": "✍️ Compose Personalized Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✍️ Compose Personalized Email": {
+      "main": [
+        [
+          {
+            "node": "🔍 Filter Valid Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Filter Valid Rows": {
+      "main": [
+        [
+          {
+            "node": "📎 Fetch Resume from Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📎 Fetch Resume from Google Drive": {
+      "main": [
+        [
+          {
+            "node": "📧 Send Email via Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📧 Send Email via Gmail": {
+      "main": [
+        [
+          {
+            "node": "✅ Mark Row as Sent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🚨 Error Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Mark Row as Sent": {
+      "main": [
+        [
+          {
+            "node": "⏱️ Rate Limit Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚨 Error Logger": {
+      "main": [
+        []
+      ]
+    },
+    "⏱️ Rate Limit Delay": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "8538fb46-6f44-4ae0-8d1a-c41353ce7bf6",
+  "meta": {
+    "instanceId": "528d3dbde81b1f145a8fc4f99d5d4985960e08e1eec1b3e9ed393481f17331d5"
+  },
+  "id": "kQY98EDvGL4qHlHB",
+  "tags": []
+}
